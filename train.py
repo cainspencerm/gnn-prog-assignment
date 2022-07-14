@@ -75,46 +75,69 @@ def train(epochs, batch_size, learning_rate, model):
         return val_loss, val_accuracy
 
 
+def create_model(model_type):
+    if model_type == 'cnn':
+        from models import cnn
+        model = cnn.Classifier()
+    elif model_type == 'spectral':
+        from models import spectral
+        model = spectral.Classifier()
+    elif model_type == 'spatial':
+        from models import spatial
+        model = spatial.Classifier()
+    else:
+        raise ValueError(f'Model {model_type} not recognized')
+
+    return model
+
+
 def main():
     parser = argparse.ArgumentParser(description='Search for best parameters')
     parser.add_argument('--model', type=str, default='cnn', help='The type of model: cnn, spectral, or spatial')
-    args = parser.parse_known_args()
+    parser.add_argument('--param-search', action='store_true', help='Whether to search for best parameters')
+    args = parser.parse_args()
 
-    state_results = []
+    if args.param_search:
+        state_results = []
 
-    epoch_options = [4, 6, 8, 10, 12, 14, 16, 18, 20]
-    batch_options = [32, 64, 128, 256]
-    learning_rate_options = [1e-5, 5e-4, 1e-4, 5e-3, 1e-3, 5e-2, 1e-2, 5e-1, 1e-1]
+        epoch_options = [4, 6, 8, 10, 12, 14, 16, 18, 20]
+        batch_options = [32, 64, 128, 256]
+        learning_rate_options = [5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1]
 
-    for epochs in epoch_options:
-        for batch_size in batch_options:
-            for learning_rate in learning_rate_options:
-                val_losses, val_accuracies = [], []
-                for _ in range(3):
-                    if args.model == 'cnn':
-                        from models import cnn
-                        model = cnn.Classifier()
-                    elif args.model == 'spectral':
-                        from models import spectral
-                        model = spectral.Classifier()
-                    elif args.model == 'spatial':
-                        from models import spatial
-                        model = spatial.Classifier()
-                    else:
-                        raise ValueError(f'Model {args.model} not recognized')
+        for epochs in epoch_options:
+            for batch_size in batch_options:
+                for learning_rate in learning_rate_options:
+                    val_losses, val_accuracies = [], []
+                    for _ in range(3):
+                        model = create_model(args.model)
 
-                    val_loss, val_accuracy = train(epochs, batch_size, learning_rate, model)
-                    val_losses.append(val_loss)
-                    val_accuracies.append(val_accuracy)
+                        val_loss, val_accuracy = train(epochs, batch_size, learning_rate, model)
+                        val_losses.append(val_loss)
+                        val_accuracies.append(val_accuracy)
 
-                state_results.append({'epochs': epochs, 'batch_size': batch_size, 'lr': learning_rate,
-                    'loss': sum(val_losses) / 3, 'acc': sum(val_accuracies) / 3})
-                print(state_results[-1])
-    
-    with open('cnn_state_results.txt', 'w') as f:
-        f.write('epochs, batch_size, lr, loss, acc\n')
-        for result in state_results:
-            f.write(f'{result["epochs"]}, {result["batch_size"]}, {result["lr"]}, {result["loss"]}, {result["acc"]}\n')
+                    state_results.append({'epochs': epochs, 'batch_size': batch_size, 'lr': learning_rate,
+                        'loss': sum(val_losses) / 3, 'acc': sum(val_accuracies) / 3})
+                    print(state_results[-1])
+        
+        with open(f'param_search/{args.model}_state_results.txt', 'w') as f:
+            f.write('epochs, batch_size, lr, loss, acc\n')
+            for result in state_results:
+                f.write(f'{result["epochs"]}, {result["batch_size"]}, {result["lr"]}, {result["loss"]}, {result["acc"]}\n')
+    else:
+        model = create_model(args.model)
+        
+        val_loss, val_accuracy = train(
+            epochs=model.defaults['epochs'],
+            batch_size=model.defaults['batch_size'],
+            learning_rate=model.defaults['learning_rate'],
+            model=model
+        )
+
+        print(f'Validation loss: {val_loss}')
+        print(f'Validation accuracy: {val_accuracy}')
+
+        torch.save(model.state_dict(), f'checkpoints/{args.model}_{model.get_defaults()}.pt')
+
 
 
 if __name__ == '__main__':
