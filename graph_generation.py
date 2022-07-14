@@ -3,6 +3,8 @@ from tqdm import tqdm
 import mnist_mini
 from torch.utils import data
 import os
+import networkx as nx
+from matplotlib import pyplot as plt
 
 
 # Modified from source: https://towardsdatascience.com/machine-learning-basics-with-the-k-nearest-neighbors-algorithm-6a6e71d01761
@@ -54,20 +56,19 @@ else:
         for node1, node2 in edge_list:
             f.write(f'{node1} {node2}\n')
 
-full_adj = np.zeros((len(dataset), len(dataset)))
-for node1, node2 in edge_list:
-    full_adj[node1, node2] = 1
-    full_adj[node2, node1] = 1
+super_adj = np.zeros((10, 10), dtype=int)
+for edge in edge_list:
+    _, label1 = dataset[edge[0]]
+    _, label2 = dataset[edge[1]]
+    super_adj[label1, label2] += 1
 
-t = tqdm(total=len(dataset))
-super_adj = np.zeros((10, 10))
-loader = data.DataLoader(dataset, batch_size=1, num_workers=16, persistent_workers=True, shuffle=False)
-for idx, (_, i_label) in enumerate(loader):
-    for jdx, (_, j_label) in enumerate(dataset):
-        if idx == jdx:
-            continue
-        super_adj[i_label, j_label] += 1
-    t.update(1)
-t.close()
+for row in super_adj:
+    print(' & '.join(map(str, row)), end=' \\\\\n')
+print(np.sum(super_adj))
 
-print(super_adj)
+G = nx.Graph()
+G.add_edges_from(edge_list)
+
+labels = [dataset[idx][1].item() for idx in range(len(dataset))]
+nx.draw(G, node_size=2, nodelist=[i for i in range(len(labels))], node_color=labels, cmap=plt.get_cmap('gist_rainbow'), width=0.5, with_labels=False)
+plt.show()

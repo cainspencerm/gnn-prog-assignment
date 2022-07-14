@@ -34,3 +34,9 @@ class MNIST(Dataset):
 
     def __len__(self):
         return len(self.labels)
+
+    def get_balance(self):
+        balance = np.zeros(len(set(self.labels)))
+        for label in self.labels:
+            balance[label] += 1
+        return balance / np.sum(balance)
