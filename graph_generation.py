@@ -1,17 +1,17 @@
 import numpy as np
 from tqdm import tqdm
 import mnist_mini
-import networkx as nx
+from torch.utils import data
 import os
 
 
 # Modified from source: https://towardsdatascience.com/machine-learning-basics-with-the-k-nearest-neighbors-algorithm-6a6e71d01761
 
-def knn(data, query, query_idx, k, distance_fn):
+def knn(dataset, query, query_idx, k, distance_fn):
     neighbor_distances_and_indices = []
     
     # For each example in the data
-    for idx, (example, _) in enumerate(data):
+    for idx, (example, _) in enumerate(dataset):
         if idx == query_idx:
             continue
         example = example.numpy().flatten()
@@ -45,7 +45,8 @@ else:
     for idx, (image, _) in enumerate(dataset):
         results = knn(dataset, image.numpy().flatten(), idx, k=7, distance_fn=np.correlate)
         for result in results:
-            edge_list.append((idx, result[1]))
+            if (idx, result[1]) not in edge_list and (result[1], idx) not in edge_list:
+                edge_list.append((idx, result[1]))
         t.update(1)
     t.close()
 
@@ -58,11 +59,15 @@ for node1, node2 in edge_list:
     full_adj[node1, node2] = 1
     full_adj[node2, node1] = 1
 
+t = tqdm(total=len(dataset))
 super_adj = np.zeros((10, 10))
-for idx, (_, i_label) in enumerate(dataset):
+loader = data.DataLoader(dataset, batch_size=1, num_workers=16, persistent_workers=True, shuffle=False)
+for idx, (_, i_label) in enumerate(loader):
     for jdx, (_, j_label) in enumerate(dataset):
         if idx == jdx:
             continue
         super_adj[i_label, j_label] += 1
+    t.update(1)
+t.close()
 
 print(super_adj)
