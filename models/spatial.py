@@ -14,9 +14,7 @@ class Classifier(nn.Module):
         """
         self.gat1 = GATConv(256, 64, 3)
         self.gat2 = GATConv(64, 10, 3)
-        self.optimizer = optim.Adam(self.parameters(),
-                                          lr=0.005,
-                                          weight_decay=5e-4)
+
        
        # Determined in parameter search.
         self.defaults = {'epochs': 20, 'batch_size': 32, 'learning_rate': 5e-3}
