@@ -63,16 +63,18 @@ def train(epochs, batch_size, learning_rate, return_model=False):
         model.eval()
 
         with torch.no_grad():
+            val_accuracy = 0.
+            val_loss = 0.
             for data, labels in test_loader:
                 data, labels = data.to(device), labels.to(device)
 
                 outputs = model(data)
                 loss = criterion(outputs, labels)
 
-                val_loss = loss.item()
+                val_loss += loss.item()
             
                 state = default_evaluator.run([[outputs, labels]])
-                val_accuracy = state.metrics['accuracy']
+                val_accuracy += state.metrics['accuracy']
 
                 writer.add_scalar("Loss/test", loss, epoch)
                 writer.add_scalar("Accuracy/test", state.metrics['accuracy'], epoch)
@@ -81,9 +83,9 @@ def train(epochs, batch_size, learning_rate, return_model=False):
     writer.close()
 
     if return_model:
-        return val_loss, val_accuracy, model
+        return val_loss / len(test_loader), val_accuracy / len(test_loader), model
     else:
-        return val_loss, val_accuracy
+        return val_loss / len(test_loader), val_accuracy / len(test_loader)
 
 
 def main():
