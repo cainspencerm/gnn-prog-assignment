@@ -7,6 +7,9 @@ from dgl.nn import DenseChebConv
 class Classifier(nn.Module):
     def __init__(self, dropout):
         super().__init__()
+        """two spectral layers: 
+        studied and referenced from 
+        https://docs.dgl.ai/en/0.8.x/generated/dgl.nn.pytorch.conv.DenseGraphConv.html"""
         self.gc1 = DenseChebConv(256, 64, 2)
         self.gc2 = DenseChebConv(64, 10, 2)
         self.dropout = dropout
