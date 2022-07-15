@@ -72,18 +72,15 @@ class MNIST_Graph(DGLDataset):
             label, data = line.split(' ', maxsplit=1)
 
             data = np.array(list(map(float, data.split())))
-            data = data.reshape(16, 16)
 
             self._data.append(data)
             self._labels.append(int(float(label)))
 
-        print(len(self._data))
-
+        self._data = np.array(self._data)
+        self._labels = np.array(self._labels)
 
         # Generate masks.
-
-        train_mask = torch.tensor(np.array([i < self._train_len for i in range(len(self._labels))]),
-                                      dtype=torch.bool)
+        train_mask = torch.tensor(np.array([i < self._train_len for i in range(len(self._labels))]), dtype=torch.bool)
 
         test_mask = torch.tensor(np.array([i >= self._train_len for i in range(len(self._labels))]), dtype=torch.bool)
 
@@ -107,10 +104,10 @@ class MNIST_Graph(DGLDataset):
     def __len__(self):
         return 1  # This dataset has only one graph
 
-    def save(self):
-        graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
-        dgl.save_graphs(graph_path, self._g, {'labels': self._labels})
+    # def save(self):
+    #     graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
+    #     dgl.save_graphs(graph_path, self._g, {'labels': self._labels})
 
-    def load(self):
-        graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
-        self.graphs, label_dict = dgl.load_graphs(graph_path)
+    # def load(self):
+    #     graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
+    #     self.graphs, label_dict = dgl.load_graphs(graph_path)
