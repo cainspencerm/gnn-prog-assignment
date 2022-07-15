@@ -1,5 +1,5 @@
 from models import cnn
-import mnist_mini
+from data import mnist_mini
 
 import torch
 from torch import nn, optim
@@ -9,10 +9,10 @@ from ignite import engine, metrics
 import argparse
 
 
-def train(epochs, batch_size, learning_rate, model):
+def train(epochs, batch_size, learning_rate):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = model.to(device)
+    model = cnn.Classifier().to(device)
 
     # Prepare datasets.
     train_set = mnist_mini.MNIST(data_dir='data', split='train')
@@ -34,8 +34,9 @@ def train(epochs, batch_size, learning_rate, model):
     criterion = nn.CrossEntropyLoss()
 
     # Begin training.
-    model.train()
     for epoch in range(epochs):
+        model.train()
+
         train_loss = 0.
         train_accuracy = 0.
         for data, labels in train_loader:
@@ -75,25 +76,8 @@ def train(epochs, batch_size, learning_rate, model):
         return val_loss, val_accuracy
 
 
-def create_model(model_type):
-    if model_type == 'cnn':
-        from models import cnn
-        model = cnn.Classifier()
-    elif model_type == 'spectral':
-        from models import spectral
-        model = spectral.Classifier()
-    elif model_type == 'spatial':
-        from models import spatial
-        model = spatial.Classifier()
-    else:
-        raise ValueError(f'Model {model_type} not recognized')
-
-    return model
-
-
 def main():
     parser = argparse.ArgumentParser(description='Search for best parameters')
-    parser.add_argument('--model', type=str, default='cnn', help='The type of model: cnn, spectral, or spatial')
     parser.add_argument('--param-search', action='store_true', help='Whether to search for best parameters')
     args = parser.parse_args()
 
@@ -109,9 +93,8 @@ def main():
                 for learning_rate in learning_rate_options:
                     val_losses, val_accuracies = [], []
                     for _ in range(3):
-                        model = create_model(args.model)
 
-                        val_loss, val_accuracy = train(epochs, batch_size, learning_rate, model)
+                        val_loss, val_accuracy = train(epochs, batch_size, learning_rate)
                         val_losses.append(val_loss)
                         val_accuracies.append(val_accuracy)
 
@@ -119,24 +102,22 @@ def main():
                         'loss': sum(val_losses) / 3, 'acc': sum(val_accuracies) / 3})
                     print(state_results[-1])
         
-        with open(f'param_search/{args.model}_state_results.txt', 'w') as f:
+        with open('param_search/cnn_state_results.txt', 'w') as f:
             f.write('epochs, batch_size, lr, loss, acc\n')
             for result in state_results:
                 f.write(f'{result["epochs"]}, {result["batch_size"]}, {result["lr"]}, {result["loss"]}, {result["acc"]}\n')
     else:
-        model = create_model(args.model)
-        
-        val_loss, val_accuracy = train(
-            epochs=model.defaults['epochs'],
-            batch_size=model.defaults['batch_size'],
-            learning_rate=model.defaults['learning_rate'],
-            model=model
+        val_loss, val_accuracy, model = train(
+            epochs=cnn.defaults['epochs'],
+            batch_size=cnn.defaults['batch_size'],
+            learning_rate=cnn.defaults['learning_rate'],
+            return_model=True
         )
 
         print(f'Validation loss: {val_loss}')
         print(f'Validation accuracy: {val_accuracy}')
 
-        torch.save(model.state_dict(), f'checkpoints/{args.model}_{model.get_defaults()}.pt')
+        torch.save(model.state_dict(), f'checkpoints/cnn_{cnn.get_defaults()}.pt')
 
 
 
