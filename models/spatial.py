@@ -1,5 +1,6 @@
 from torch import nn
 import torch.nn.functional as F
+import torch.optim as optim
 import dgl
 from dgl.nn import GATConv
 
@@ -7,9 +8,13 @@ from dgl.nn import GATConv
 class Classifier(nn.Module):
     def __init__(self):
         super().__init__()
-        self.gat1 = GATConv(256, 64, heads=3)
-        self.gat2 = GATConv(64, 10, heads=3)
-        self.optimizer = nn.optim.Adam(self.parameters(),
+        """ two spatial layers:
+        studied and referenced from the
+        https://docs.dgl.ai/en/0.8.x/generated/dgl.nn.pytorch.conv.GATConv.html
+        """
+        self.gat1 = GATConv(256, 64, 3)
+        self.gat2 = GATConv(64, 10, 3)
+        self.optimizer = optim.Adam(self.parameters(),
                                           lr=0.005,
                                           weight_decay=5e-4)
        
