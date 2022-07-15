@@ -5,11 +5,14 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from ignite import engine, metrics
+from torch.utils.tensorboard import SummaryWriter
 
 import argparse
 
 
-def train(epochs, batch_size, learning_rate):
+def train(epochs, batch_size, learning_rate, return_model=False):
+
+    writer = SummaryWriter(filename_suffix=f'cnn_{epochs}_{batch_size}_{learning_rate}')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = cnn.Classifier().to(device)
@@ -53,11 +56,12 @@ def train(epochs, batch_size, learning_rate):
             state = default_evaluator.run([[outputs, labels]])
             train_accuracy += state.metrics['accuracy']
 
+            writer.add_scalar("Loss/train", loss, epoch)
+            writer.add_scalar("Accuracy/train", state.metrics['accuracy'], epoch)
+
         # Evaluate the model.
         model.eval()
 
-        val_loss = 0.
-        val_accuracy = 0.
         with torch.no_grad():
             for data, labels in test_loader:
                 data, labels = data.to(device), labels.to(device)
@@ -65,14 +69,20 @@ def train(epochs, batch_size, learning_rate):
                 outputs = model(data)
                 loss = criterion(outputs, labels)
 
-                val_loss += loss.item()
+                val_loss = loss.item()
             
                 state = default_evaluator.run([[outputs, labels]])
-                val_accuracy += state.metrics['accuracy']
+                val_accuracy = state.metrics['accuracy']
 
-        val_loss /= len(test_loader)
-        val_accuracy /= len(test_loader)
+                writer.add_scalar("Loss/test", loss, epoch)
+                writer.add_scalar("Accuracy/test", state.metrics['accuracy'], epoch)
 
+    writer.flush()
+    writer.close()
+
+    if return_model:
+        return val_loss, val_accuracy, model
+    else:
         return val_loss, val_accuracy
 
 
