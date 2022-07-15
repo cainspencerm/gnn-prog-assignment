@@ -1,6 +1,6 @@
 import numpy as np
 from tqdm import tqdm
-import mnist_mini
+from data import mnist_mini
 from torch.utils import data
 import os
 import networkx as nx

@@ -46,20 +46,24 @@ class MNIST(Dataset):
 
 class MNIST_Graph(DGLDataset):
     def __init__(self, raw_dir='data', save_dir='data', force_reload=False, verbose=True):
-        super().__init__('MNIST', raw_dir, force_reload, verbose)
+        super().__init__('MNIST', raw_dir=raw_dir, force_reload=force_reload, verbose=verbose)
+
+
+
+    def process(self):
 
         self._edges = []
-        with open(os.path.join(raw_dir, 'edge_list.txt'), 'r') as f:
+        with open(os.path.join(self.raw_dir, 'edge_list.txt'), 'r') as f:
             for line in f.readlines():
                 u, v = line.split(' ')
                 u, v = int(u), int(v)
                 self._edges.append((u, v))
 
-        with open(os.path.join(raw_dir, 'zip_train.txt'), 'r') as f:
+        with open(os.path.join(self.raw_dir, 'zip_train.txt'), 'r') as f:
             lines = f.readlines()
         self._train_len = len(lines)
 
-        with open(os.path.join(raw_dir, 'zip_test.txt'), 'r') as f:
+        with open(os.path.join(self.raw_dir, 'zip_test.txt'), 'r') as f:
             lines += f.readlines()
         self._test_len = len(lines) - self._train_len
 
@@ -73,13 +77,18 @@ class MNIST_Graph(DGLDataset):
             self._data.append(data)
             self._labels.append(int(float(label)))
 
-    def process(self):
+        print(len(self._data))
+
+
         # Generate masks.
-        train_mask = torch.tensor(np.array([True for i in range(len(self._labels)) if i < self._train_len]), dtype=torch.bool)
-        test_mask = torch.tensor(np.array([True for i in range(len(self._labels)) if i >= self._train_len]), dtype=torch.bool)
+
+        train_mask = torch.tensor(np.array([i < self._train_len for i in range(len(self._labels))]),
+                                      dtype=torch.bool)
+
+        test_mask = torch.tensor(np.array([i >= self._train_len for i in range(len(self._labels))]), dtype=torch.bool)
 
         # build graph
-        g = dgl.graph(self.edges)
+        g = dgl.graph(self._edges)
         # splitting masks
         g.ndata['train_mask'] = train_mask
         g.ndata['test_mask'] = test_mask
