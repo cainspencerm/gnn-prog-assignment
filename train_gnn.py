@@ -6,13 +6,15 @@ import torch.nn as nn
 import networkx as nx
 import argparse
 from torch.utils import tensorboard as tb
+import dgl
 
 
 def train(learning_rate, model_type, data, epoch_options: list, return_model=False):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    dataset, adj_mat, node_features, node_labels, train_mask, test_mask = data
+    graph, dataset, adj_mat, node_features, node_labels, train_mask, test_mask = data
+    graph = graph.to(device)
     adj_mat = adj_mat.to(device)
     node_features = node_features.to(device)
     node_labels = node_labels.to(device)
@@ -22,8 +24,12 @@ def train(learning_rate, model_type, data, epoch_options: list, return_model=Fal
 
     if model_type is spectral:
         model_name = 'spectral'
+        graph_rep = adj_mat
+
     elif model_type is spatial:
         model_name = 'spatial'
+        graph_rep = graph
+
     else:
         raise ValueError('Unknown model type')
     
@@ -38,7 +44,7 @@ def train(learning_rate, model_type, data, epoch_options: list, return_model=Fal
         model.train()
 
         # Forward pass.
-        outputs = model(adj_mat, node_features)
+        outputs = model(graph_rep, node_features)
         loss = criterion(outputs[train_mask], node_labels[train_mask])
 
         # Backward and optimize.
@@ -54,7 +60,7 @@ def train(learning_rate, model_type, data, epoch_options: list, return_model=Fal
         model.eval()
 
         with torch.no_grad():
-            outputs = model(adj_mat, node_features)
+            outputs = model(graph_rep, node_features)
             test_loss = criterion(outputs[test_mask], node_labels[test_mask])
 
             _, indices = torch.max(outputs, dim=1)
@@ -97,12 +103,17 @@ def main():
     train_mask = graph.ndata['train_mask']
     test_mask = graph.ndata['test_mask']
 
-    data = dataset, adj_mat, node_features, node_labels, train_mask, test_mask
+    data = graph, dataset, adj_mat, node_features, node_labels, train_mask, test_mask
 
     if args.model == 'spatial':
         model_module = spatial
+
+        # Add self loops to graph.
+        graph = dgl.add_self_loop(graph)
+    
     elif args.model == 'spectral':
         model_module = spectral
+
     else:
         raise ValueError('Unknown model type')
 

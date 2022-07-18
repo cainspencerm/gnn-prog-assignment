@@ -1,33 +1,45 @@
 from torch import nn
-import torch.nn.functional as F
-import torch.optim as optim
-import dgl
-from dgl.nn import GATConv
+from dgl import nn as dglnn
 
+
+# Determined in parameter search.
+defaults = {'epochs': 30, 'learning_rate': 5e-3}
+
+def get_defaults():
+    return 'epochs_' + str(defaults['epochs']) + \
+        '_learning_rate_' + '{:.0e}'.format(defaults['learning_rate'])
 
 class Classifier(nn.Module):
     def __init__(self):
         super().__init__()
-        """ two spatial layers:
-        studied and referenced from the
-        https://docs.dgl.ai/en/0.8.x/generated/dgl.nn.pytorch.conv.GATConv.html
-        """
-        self.gat1 = GATConv(256, 64, 3)
-        self.gat2 = GATConv(64, 10, 3)
-        self.optimizer = optim.Adam(self.parameters(),
-                                          lr=0.005,
-                                          weight_decay=5e-4)
+        self.gat1 = dglnn.GATConv(256, 256, num_heads=3, attn_drop=0.5, residual=True)
+        self.gat2 = dglnn.GATConv(256, 256, num_heads=3, attn_drop=0.5, residual=True)
+        self.elu = nn.ELU()
+        self.dropout = nn.Dropout(0.5)
+
+        self.fc1 = nn.Linear(2304, 64)
+        self.fc2 = nn.Linear(64, 10)
+        self.relu = nn.ReLU()
        
        # Determined in parameter search.
         self.defaults = {'epochs': 20, 'batch_size': 32, 'learning_rate': 5e-3}
 
-    def forward(self, x, edge_index, training=True):
-        h = F.dropout(x, p=0.6, training=self.training)
-        h = self.gat1(x, edge_index)
-        h = F.elu(h)
-        h = F.dropout(h, p=0.6, training=self.training)
-        h = self.gat2(h, edge_index)
-        return h, F.log_softmax(h, dim=1)
+    def forward(self, graph, x):
+        x = self.gat1(graph, x)
+        x = self.elu(x)
+        x = self.dropout(x)
+
+        x = self.gat2(graph, x)
+        x = self.elu(x)
+        x = self.dropout(x)
+
+        x = x.view(-1, 2304)
+
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+
+        return x
 
     def get_defaults(self):
         return 'epochs_' + str(self.defaults['epochs']) + \
