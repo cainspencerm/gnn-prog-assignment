@@ -10,9 +10,9 @@ from torch.utils.tensorboard import SummaryWriter
 import argparse
 
 
-def train(epochs, batch_size, learning_rate, return_model=False):
+def train(batch_size, learning_rate, epoch_options, return_model=False):
 
-    writer = SummaryWriter(filename_suffix=f'cnn_{epochs}_{batch_size}_{learning_rate}')
+    writer = SummaryWriter(f'runs/cnn_{batch_size}_{learning_rate}')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = cnn.Classifier().to(device)
@@ -37,11 +37,11 @@ def train(epochs, batch_size, learning_rate, return_model=False):
     criterion = nn.CrossEntropyLoss()
 
     # Begin training.
-    for epoch in range(epochs):
+    for epoch in range(max(epoch_options)):
         model.train()
 
         train_loss = 0.
-        train_accuracy = 0.
+        train_acc = 0.
         for data, labels in train_loader:
             data, labels = data.to(device), labels.to(device)
 
@@ -54,38 +54,47 @@ def train(epochs, batch_size, learning_rate, return_model=False):
             train_loss += loss.item()
             
             state = default_evaluator.run([[outputs, labels]])
-            train_accuracy += state.metrics['accuracy']
+            train_acc += state.metrics['accuracy']
 
-            writer.add_scalar("Loss/train", loss, epoch)
-            writer.add_scalar("Accuracy/train", state.metrics['accuracy'], epoch)
+        train_loss /= len(train_loader)
+        train_acc /= len(train_loader)
 
         # Evaluate the model.
         model.eval()
 
         with torch.no_grad():
-            val_accuracy = 0.
-            val_loss = 0.
+            test_acc = 0.
+            test_loss = 0.
             for data, labels in test_loader:
                 data, labels = data.to(device), labels.to(device)
 
                 outputs = model(data)
                 loss = criterion(outputs, labels)
 
-                val_loss += loss.item()
+                test_loss += loss.item()
             
                 state = default_evaluator.run([[outputs, labels]])
-                val_accuracy += state.metrics['accuracy']
+                test_acc += state.metrics['accuracy']
 
-                writer.add_scalar("Loss/test", loss, epoch)
-                writer.add_scalar("Accuracy/test", state.metrics['accuracy'], epoch)
+            test_loss /= len(test_loader)
+            test_acc /= len(test_loader)
 
-    writer.flush()
+            if epoch + 1 in epoch_options:
+                print(f'Epoch: {epoch + 1:02} | Batch Size: {batch_size} | Learning Rate: {learning_rate:.0e} | Train Loss: {train_loss:.4f} | Val. Loss: {test_loss:.4f} | Val. Acc: {test_acc:.2f}')
+
+            writer.add_scalar('Train/Loss', train_loss, epoch + 1)
+            writer.add_scalar('Train/Acc', train_acc, epoch + 1)
+            writer.add_scalar('Test/Loss', test_loss, epoch + 1)
+            writer.add_scalar('Test/Acc', test_acc, epoch + 1)
+
+        writer.flush()
+
     writer.close()
 
     if return_model:
-        return val_loss / len(test_loader), val_accuracy / len(test_loader), model
+        return test_loss, test_acc, model
     else:
-        return val_loss / len(test_loader), val_accuracy / len(test_loader)
+        return test_loss, test_acc
 
 
 def main():
@@ -94,43 +103,27 @@ def main():
     args = parser.parse_args()
 
     if args.param_search:
-        state_results = []
-
+        
         epoch_options = [4, 6, 8, 10, 12, 14, 16, 18, 20]
         batch_options = [32, 64, 128, 256]
         learning_rate_options = [5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1]
 
-        for epochs in epoch_options:
-            for batch_size in batch_options:
-                for learning_rate in learning_rate_options:
-                    val_losses, val_accuracies = [], []
-                    for _ in range(3):
+        for batch_size in batch_options:
+            for learning_rate in learning_rate_options:
+                val_loss, val_accuracy = train(batch_size, learning_rate, epoch_options=epoch_options)
 
-                        val_loss, val_accuracy = train(epochs, batch_size, learning_rate)
-                        val_losses.append(val_loss)
-                        val_accuracies.append(val_accuracy)
-
-                    state_results.append({'epochs': epochs, 'batch_size': batch_size, 'lr': learning_rate,
-                        'loss': sum(val_losses) / 3, 'acc': sum(val_accuracies) / 3})
-                    print(state_results[-1])
-        
-        with open('param_search/cnn_state_results.txt', 'w') as f:
-            f.write('epochs, batch_size, lr, loss, acc\n')
-            for result in state_results:
-                f.write(f'{result["epochs"]}, {result["batch_size"]}, {result["lr"]}, {result["loss"]}, {result["acc"]}\n')
     else:
+
         val_loss, val_accuracy, model = train(
-            epochs=cnn.defaults['epochs'],
             batch_size=cnn.defaults['batch_size'],
             learning_rate=cnn.defaults['learning_rate'],
+            epoch_options=[cnn.defaults['epochs']],
             return_model=True
         )
 
-        print(f'Validation loss: {val_loss}')
-        print(f'Validation accuracy: {val_accuracy}')
+        print(f'Validation loss: {val_loss:.4f} | Validation accuracy: {val_accuracy:.2f}')
 
         torch.save(model.state_dict(), f'checkpoints/cnn_{cnn.get_defaults()}.pt')
-
 
 
 if __name__ == '__main__':
