@@ -1,33 +1,40 @@
 from torch import nn
-import torch.nn.functional as F
-import dgl
-from dgl.nn import DenseChebConv
+from dgl import nn as dglnn
+
+# Determined in parameter search.
+defaults = {'epochs': 17, 'learning_rate': 5e-3}
+
+def get_defaults():
+    return 'epochs_' + str(defaults['epochs']) + \
+        '_learning_rate_' + '{:.0e}'.format(defaults['learning_rate'])
 
 
 class Classifier(nn.Module):
-    def __init__(self, dropout):
+    def __init__(self):
         super().__init__()
-        """two spectral layers: 
-        studied and referenced from 
-        https://docs.dgl.ai/en/0.8.x/generated/dgl.nn.pytorch.conv.DenseGraphConv.html"""
-        self.gc1 = DenseChebConv(256, 64, 2)
-        self.gc2 = DenseChebConv(64, 10, 2)
-        self.dropout = dropout
 
+        self.gc1 = dglnn.DenseChebConv(256, 256, 2)
+        self.gc2 = dglnn.DenseChebConv(256, 256, 2)
+        self.elu = nn.ELU()
+        self.dropout = nn.Dropout(0.5)
 
-        # Determined in parameter search.
-        self.defaults = {'epochs': 20, 'batch_size': 32, 'learning_rate': 5e-3}
+        self.fc1 = nn.Linear(256, 64)
+        self.fc2 = nn.Linear(64, 10)
+        self.relu = nn.ReLU()
 
-    def forward(self, x, adj, training=True):
-        x = F.relu(self.gc1(x, adj))
-        x = F.dropout(x, self.dropout, training=self.training)
-        x = self.gc2(x, adj)
-        return F.log_softmax(x, dim=1)
+    def forward(self, adj, x):
+        x = self.gc1(adj, x)
+        x = self.elu(x)
+        x = self.dropout(x)
 
+        x = self.gc2(adj, x)
+        x = self.elu(x)
+        x = self.dropout(x)
 
-    def get_defaults(self):
-        return 'epochs_' + str(self.defaults['epochs']) + \
-            '_batch_size_' + str(self.defaults['batch_size']) + \
-            '_learning_rate_' + '{:.0e}'.format(self.defaults['learning_rate'])
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+
+        return x
 
 
