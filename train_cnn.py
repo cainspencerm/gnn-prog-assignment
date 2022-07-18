@@ -90,7 +90,14 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
             if epoch + 1 in epoch_options:
                 print(f'Epoch: {epoch + 1:02} | Batch Size: {batch_size} | Learning Rate: {learning_rate:.0e} | Train Loss: {train_loss:.4f} | Val. Loss: {test_loss:.4f} | Val. Acc: {test_acc:.2f}')
 
-                print(f'Confusion Matrix: \n{conf_mat}')
+                def to_latex(conf_mat):
+                    latex_str = ''
+                    for row in conf_mat:
+                        latex_str += ' & '.join(map(str, row))
+                        latex_str += ' \\\\ \n'
+                    return latex_str
+
+                print(f'Confusion Matrix: \n{to_latex(conf_mat)}')
 
             writer.add_scalar('Train/Loss', train_loss, epoch + 1)
             writer.add_scalar('Train/Acc', train_acc, epoch + 1)
