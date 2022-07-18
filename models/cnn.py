@@ -2,7 +2,7 @@ from torch import nn
 
 
 # Determined in parameter search.
-defaults = {'epochs': 4, 'batch_size': 32, 'learning_rate': 0.005}
+defaults = {'epochs': 6, 'batch_size': 32, 'learning_rate': 0.005}
 
 def get_defaults():
     return 'epochs_' + str(defaults['epochs']) + \
