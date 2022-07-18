@@ -6,6 +6,8 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from ignite import engine, metrics
 from torch.utils.tensorboard import SummaryWriter
+from sklearn import metrics as sk_metrics
+import numpy as np
 
 import argparse
 
@@ -65,6 +67,7 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
         with torch.no_grad():
             test_acc = 0.
             test_loss = 0.
+            conf_mat = np.zeros((10, 10), dtype=int)
             for data, labels in test_loader:
                 data, labels = data.to(device), labels.to(device)
 
@@ -72,15 +75,22 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
                 loss = criterion(outputs, labels)
 
                 test_loss += loss.item()
-            
-                state = default_evaluator.run([[outputs, labels]])
-                test_acc += state.metrics['accuracy']
+
+                # Compute accuracy.
+                _, indices = torch.max(outputs, dim=1)
+                correct = torch.sum(indices == labels)
+                test_acc += correct.item() * 1.0 / len(data)
+
+                # Compute confusion matrix.
+                conf_mat += sk_metrics.confusion_matrix(labels.cpu().numpy(), indices.cpu().numpy(), labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
             test_loss /= len(test_loader)
             test_acc /= len(test_loader)
 
             if epoch + 1 in epoch_options:
                 print(f'Epoch: {epoch + 1:02} | Batch Size: {batch_size} | Learning Rate: {learning_rate:.0e} | Train Loss: {train_loss:.4f} | Val. Loss: {test_loss:.4f} | Val. Acc: {test_acc:.2f}')
+
+                print(f'Confusion Matrix: \n{conf_mat}')
 
             writer.add_scalar('Train/Loss', train_loss, epoch + 1)
             writer.add_scalar('Train/Acc', train_acc, epoch + 1)
