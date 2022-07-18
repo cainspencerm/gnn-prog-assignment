@@ -48,10 +48,7 @@ class MNIST_Graph(DGLDataset):
     def __init__(self, raw_dir='data', save_dir='data', force_reload=False, verbose=True):
         super().__init__('MNIST', raw_dir=raw_dir, force_reload=force_reload, verbose=verbose)
 
-
-
     def process(self):
-
         self._edges = []
         with open(os.path.join(self.raw_dir, 'edge_list.txt'), 'r') as f:
             for line in f.readlines():
@@ -81,7 +78,6 @@ class MNIST_Graph(DGLDataset):
 
         # Generate masks.
         train_mask = torch.tensor(np.array([i < self._train_len for i in range(len(self._labels))]), dtype=torch.bool)
-
         test_mask = torch.tensor(np.array([i >= self._train_len for i in range(len(self._labels))]), dtype=torch.bool)
 
         # build graph
@@ -92,7 +88,7 @@ class MNIST_Graph(DGLDataset):
         # node labels
         g.ndata['label'] = torch.tensor(self._labels)
         # node features
-        g.ndata['feat'] = torch.tensor(self._data)
+        g.ndata['feat'] = torch.tensor(self._data, dtype=torch.float)
         self._num_labels = 10
         # reorder graph to obtain better locality.
         self._g = dgl.reorder_graph(g)
@@ -104,10 +100,8 @@ class MNIST_Graph(DGLDataset):
     def __len__(self):
         return 1  # This dataset has only one graph
 
-    # def save(self):
-    #     graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
-    #     dgl.save_graphs(graph_path, self._g, {'labels': self._labels})
-
-    # def load(self):
-    #     graph_path = os.path.join(self.save_path, 'dgl_graph.bin')
-    #     self.graphs, label_dict = dgl.load_graphs(graph_path)
+    def get_num_nodes(self, split='train'):
+        if split == 'train':
+            return self._train_len
+        else:
+            return self._test_len
