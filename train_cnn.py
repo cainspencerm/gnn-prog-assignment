@@ -1,13 +1,15 @@
+from bitarray import test
 from models import cnn
 from data import mnist_mini
 
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from ignite import engine, metrics
 from torch.utils.tensorboard import SummaryWriter
-from sklearn import metrics as sk_metrics
+from sklearn import metrics as metrics
 import numpy as np
+from torch_geometric.nn import models
+import networkx as nx
 
 import argparse
 
@@ -25,15 +27,6 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
 
     test_set = mnist_mini.MNIST(data_dir='data', split='test')
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
-
-    # Initialize metrics.
-    def eval_step(engine_, batch):
-        return batch
-
-    default_evaluator = engine.Engine(eval_step)
-
-    accuracy_score = metrics.Accuracy()
-    accuracy_score.attach(default_evaluator, 'accuracy')
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
@@ -54,9 +47,11 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
             optimizer.step()
 
             train_loss += loss.item()
-            
-            state = default_evaluator.run([[outputs, labels]])
-            train_acc += state.metrics['accuracy']
+
+            # Compute accuracy.
+            _, indices = torch.max(outputs, dim=1)
+            correct = torch.sum(indices == labels)
+            train_acc += correct.item() * 1.0 / len(data)
 
         train_loss /= len(train_loader)
         train_acc /= len(train_loader)
@@ -82,7 +77,7 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
                 test_acc += correct.item() * 1.0 / len(data)
 
                 # Compute confusion matrix.
-                conf_mat += sk_metrics.confusion_matrix(labels.cpu().numpy(), indices.cpu().numpy(), labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                conf_mat += metrics.confusion_matrix(labels.cpu().numpy(), indices.cpu().numpy(), labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
             test_loss /= len(test_loader)
             test_acc /= len(test_loader)
@@ -90,14 +85,7 @@ def train(batch_size, learning_rate, epoch_options, return_model=False):
             if epoch + 1 in epoch_options:
                 print(f'Epoch: {epoch + 1:02} | Batch Size: {batch_size} | Learning Rate: {learning_rate:.0e} | Train Loss: {train_loss:.4f} | Val. Loss: {test_loss:.4f} | Val. Acc: {test_acc:.2f}')
 
-                def to_latex(conf_mat):
-                    latex_str = ''
-                    for row in conf_mat:
-                        latex_str += ' & '.join(map(str, row))
-                        latex_str += ' \\\\ \n'
-                    return latex_str
-
-                print(f'Confusion Matrix: \n{to_latex(conf_mat)}')
+                print(f'Confusion Matrix: \n{conf_mat}')
 
             writer.add_scalar('Train/Loss', train_loss, epoch + 1)
             writer.add_scalar('Train/Acc', train_acc, epoch + 1)
@@ -127,18 +115,18 @@ def main():
 
         for batch_size in batch_options:
             for learning_rate in learning_rate_options:
-                val_loss, val_accuracy = train(batch_size, learning_rate, epoch_options=epoch_options)
+                test_loss, test_acc = train(batch_size, learning_rate, epoch_options=epoch_options)
 
     else:
 
-        val_loss, val_accuracy, model = train(
+        test_loss, test_acc, model = train(
             batch_size=cnn.defaults['batch_size'],
             learning_rate=cnn.defaults['learning_rate'],
             epoch_options=[cnn.defaults['epochs']],
             return_model=True
         )
 
-        print(f'Validation loss: {val_loss:.4f} | Validation accuracy: {val_accuracy:.2f}')
+        print(f'Test Loss: {test_loss:.4f} | Test Accuracy: {test_acc:.2f}')
 
         torch.save(model.state_dict(), f'checkpoints/cnn_{cnn.get_defaults()}.pt')
 

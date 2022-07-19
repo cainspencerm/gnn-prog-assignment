@@ -105,3 +105,6 @@ class MNIST_Graph(DGLDataset):
             return self._train_len
         else:
             return self._test_len
+    
+    def edge_index(self):
+        return self._edges
