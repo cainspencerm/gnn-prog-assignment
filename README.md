@@ -100,9 +100,38 @@ The confusion matrix on the test set:
  [   3    0    1    0    8    5    0    8    2  617]]
 ```
 
+These results can be reproduced using the following:
+```bash
+python3 train_cnn.py
+```
+
+The hyperparameter search is computed using the following:
+```bash
+python3 train_cnn.py --param-search
+```
+
 ## C&S Method
 
+Using the C\&S method conveniently provided in the Torch Geometric package, we correct-and-smoothed the output of the CNN to a test accuracy of 0.99822. In order to do so, we used 50 node correcting iterations and 50 node smoothing iterations, with their related $\alpha$s set to 1.
 
+The confusion matrix on the test set:
+```
+[[1193    0    1    3    0    0    1    2    0    0]
+ [   0 1005    0    0    0    0    0    0    0    0]
+ [   0    0  730    1    2    0    0    0    0    1]
+ [   0    0    0  654    0    0    0    0    0    0]
+ [   0    0    0    0  649    0    0    0    0    0]
+ [   0    0    0    0    1  556    0    0    0    0]
+ [   0    0    0    0    0    0  663    0    0    0]
+ [   0    0    0    0    0    0    0  643    0    0]
+ [   1    0    0    0    0    0    0    0  542    0]
+ [   0    0    0    0    0    0    0    0    0  643]]
+ ```
+
+These results can be reproduced using the following:
+```bash
+python3 test_cnn.py --c-s
+```
 
 ## Spectral Method
 
@@ -130,6 +159,16 @@ The confusion matrix on the test set:
  [   0    5    3    2   62    2    0   47    5  518]]
 ```
 
+These results can be reproduced using the following:
+```bash
+python3 train_gnn.py --model spectral
+```
+
+The hyperparameter search is computed using the following:
+```bash
+python3 train_gnn.py --model spectral --param-search
+```
+
 ## Spatial Method
 
 After completing a hyper-parameter search, we found that the spatial-based GNN model performs best on the test set with a learning rate of 0.005 over 30 epochs. The model is trained using the Adam optimizer and cross entropy loss. With best hyperparemeters, the model achieves accuracy of 92.54\% on the test set. Below are the loss and accuracy curves on the test set during training.
@@ -154,4 +193,14 @@ The confusion matrix on the test set:
  [   0    1    4    0    6    5    0  591    4   34]
  [   4    5    4   10    7    3    0    2  507    0]
  [   0    2    2    2    8    6    0   10   18  596]]
+```
+
+These results can be reproduced using the following:
+```bash
+python3 train_gnn.py --model spatial
+```
+
+The hyperparameter search is computed using the following:
+```bash
+python3 train_gnn.py --model spatial --param-search
 ```

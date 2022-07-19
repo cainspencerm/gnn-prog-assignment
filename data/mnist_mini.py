@@ -49,12 +49,16 @@ class MNIST_Graph(DGLDataset):
         super().__init__('MNIST', raw_dir=raw_dir, force_reload=force_reload, verbose=verbose)
 
     def process(self):
-        self._edges = []
+        row, col = [], []
         with open(os.path.join(self.raw_dir, 'edge_list.txt'), 'r') as f:
             for line in f.readlines():
                 u, v = line.split(' ')
                 u, v = int(u), int(v)
-                self._edges.append((u, v))
+                row.append(u)
+                col.append(v)
+    
+        self._edges = [(r, c) for r, c in zip(row, col)]
+        self._edge_index = torch.tensor(np.array([row, col], dtype=np.int64), dtype=torch.long)
 
         with open(os.path.join(self.raw_dir, 'zip_train.txt'), 'r') as f:
             lines = f.readlines()
@@ -107,4 +111,4 @@ class MNIST_Graph(DGLDataset):
             return self._test_len
     
     def edge_index(self):
-        return self._edges
+        return self._edge_index

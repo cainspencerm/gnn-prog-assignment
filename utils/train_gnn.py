@@ -75,14 +75,7 @@ def train(learning_rate, model_type, data, epoch_options: list, return_model=Fal
         if epoch + 1 in epoch_options:
             print(f'Epoch: {epoch + 1:02} | Learning Rate: {learning_rate:.0e} | Train Loss: {loss.item():.4f} | Val. Loss: {test_loss.item():.4f} | Val. Acc: {test_acc:.2f}')
 
-            def to_latex(conf_mat):
-                latex_str = ''
-                for row in conf_mat:
-                    latex_str += ' & '.join(map(str, row))
-                    latex_str += ' \\\\ \n'
-                return latex_str
-
-            print(f'Confusion Matrix: \n{to_latex(conf_mat)}')
+            print(f'Confusion Matrix: \n{conf_mat}')
 
         writer.add_scalar('Train/Loss', loss.item(), epoch + 1)
         writer.add_scalar('Train/Acc', train_acc, epoch + 1)
@@ -101,7 +94,7 @@ def train(learning_rate, model_type, data, epoch_options: list, return_model=Fal
 
 def main():
     parser = argparse.ArgumentParser(description='Search for best parameters')
-    parser.add_argument('--model', type=str, help='Model type to use')
+    parser.add_argument('--model', required=True, type=str, help='Model type to use')
     parser.add_argument('--param-search', action='store_true', help='Whether to search for best parameters')
     args = parser.parse_args()
 
@@ -135,10 +128,10 @@ def main():
         epoch_options = [6, 8, 10, 12, 14, 16, 18, 20]
         learning_rate_options = [5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1]
         for learning_rate in learning_rate_options:
-            val_loss, val_accuracy = train(learning_rate, model_module, data, epoch_options=epoch_options)
+            test_loss, test_acc = train(learning_rate, model_module, data, epoch_options=epoch_options)
 
     else:
-        val_loss, val_accuracy, model = train(
+        test_loss, test_acc, model = train(
             learning_rate=model_module.defaults['learning_rate'],
             model_type=model_module,
             data=data,
@@ -146,9 +139,9 @@ def main():
             return_model=True
         )
 
-        print(f'Validation loss: {val_loss:.4f} | Validation accuracy: {val_accuracy:.2f}')
+        print(f'Test loss: {test_loss:.4f} | Test accuracy: {test_acc:.2f}')
 
-        torch.save(model.state_dict(), f'checkpoints/gnn_{model_module.get_defaults()}.pt')
+        torch.save(model.state_dict(), f'checkpoints/{args.model}_{model_module.get_defaults()}.pt')
 
 
 if __name__ == '__main__':
