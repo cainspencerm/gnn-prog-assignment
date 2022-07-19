@@ -6,7 +6,7 @@ The main purpose of this assignment is to design and use graph neural networks, 
 
 In order to generate the graph, we created an edge list such that an edge exists if a node is among the seven nearest neighbors of another node. To find the seven nearest neighbors, we used the k-nearest-neighbor algorithm with the distance measure based on the correlation of each image. This produces an undirected graph with 9298 nodes and 64001 edges.
 
-![](graph.png)
+![](results/graph.png)
 
 # Task 1 - Graph Neural Network Design
 
